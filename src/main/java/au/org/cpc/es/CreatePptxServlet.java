@@ -20,6 +20,8 @@ public class CreatePptxServlet extends HttpServlet {
         private XMLSlideShow show;
         private XSLFSlideLayout blankLayout;
         private XSLFSlideLayout textLayout;
+        private XSLFSlide slide = null;
+        private boolean[] placeholderUsed = new boolean[2];
 
         public MakeSlides(XMLSlideShow show) {
             while (!show.getSlides().isEmpty()) {
@@ -41,9 +43,15 @@ public class CreatePptxServlet extends HttpServlet {
             CREDITS,
         }
 
+        private void initSlide(XSLFSlide slide) {
+            this.slide = slide;
+            for (int i = 0; i < placeholderUsed.length; ++i) {
+                placeholderUsed[i] = false;
+            }
+        }
+
         public void generate(java.io.BufferedReader reader) throws IOException {
             State state = State.PAGE_BREAK;
-            XSLFSlide slide = null;
 
             for (;;) {
                 String line = reader.readLine();
@@ -58,7 +66,7 @@ public class CreatePptxServlet extends HttpServlet {
                 }
 
                 if (state == State.PAGE_BREAK) {
-                    slide = show.createSlide(textLayout);
+                    initSlide(show.createSlide(textLayout));
                     state = State.BODY;
                 }
                 if (line.equals("##title")) {
@@ -66,20 +74,20 @@ public class CreatePptxServlet extends HttpServlet {
                     continue;
                 } else if (line.equals("##credits")) {
                     state = State.CREDITS;
-                    addText(slide.getPlaceholder(1), " ", 0.5);
+                    addText(1, " ", 0.5);
                     continue;
                 }
 
                 switch (state) {
                 case TITLE:
-                    addText(slide.getPlaceholder(0), line, 1.0);
+                    addText(0, line, 1.0);
                     state = State.BODY;
                     break;
                 case BODY:
-                    addText(slide.getPlaceholder(1), line, 1.0);
+                    addText(1, line, 1.0);
                     break;
                 case CREDITS:
-                    addText(slide.getPlaceholder(1), line, 0.5);
+                    addText(1, line, 0.5);
                     break;
                 default:
                     throw new IllegalStateException();
@@ -87,8 +95,13 @@ public class CreatePptxServlet extends HttpServlet {
             }
         }
 
-        private static void addText(XSLFTextShape shape, String line, double sizeRatio) {
-            XSLFTextParagraph para = shape.addNewTextParagraph();
+        private void addText(int placeholderIndex, String line, double sizeRatio) {
+            XSLFTextShape text = slide.getPlaceholder(placeholderIndex);
+            if (!placeholderUsed[placeholderIndex]) {
+                placeholderUsed[placeholderIndex] = true;
+                text.clearText();
+            }
+            XSLFTextParagraph para = text.addNewTextParagraph();
             para.setBullet(false);
             para.setIndentLevel(0);
             XSLFTextRun run = para.addNewTextRun();
