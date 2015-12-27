@@ -110,7 +110,17 @@ public class CreatePptxServlet extends javax.servlet.http.HttpServlet {
         try {
             java.io.InputStream is = getServletContext()
                 .getResourceAsStream("/WEB-INF/template.pptx");
-            pptxTemplate = org.apache.commons.io.IOUtils.toByteArray(is);
+
+            // It's troublesome to prepare pptx files with 0 slides (from Google
+            // Docs), so just remove any slides here.
+            XMLSlideShow show = new XMLSlideShow(is);
+            for (int n = show.getSlides().size(); --n >= 0;) {
+                show.removeSlide(n);
+            }
+            java.io.ByteArrayOutputStream os = new java.io.ByteArrayOutputStream();
+            show.write(os);
+
+            pptxTemplate = os.toByteArray();
         } catch (IOException e) {
             throw new ServletException(e);
         }
